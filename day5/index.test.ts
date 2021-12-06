@@ -3,6 +3,7 @@ import {
   drawPath,
   formatRow,
   formatRows,
+  getDiagnolLine,
   getHorizontalLine,
   getVerticalLine,
   isValidHorizontal,
@@ -102,3 +103,21 @@ Deno.test("draws vertical path", () => {
   assertEquals(map.get("1,2"), 1);
   assertEquals(map.get("1,3"), 1);
 });
+
+Deno.test("gets diagnol line - 1,1 -> 3,3", () => {
+  const input: Path = [[1, 1], [3, 3]];
+  const result = getDiagnolLine(input);
+
+  const output = [[3, 3], [2, 2], [1, 1]];
+  assertEquals(result, output);
+});
+
+Deno.test("gets diagnol line - 9,7 -> 7,9", () => {
+  const input: Path = [[9, 7], [7, 9]];
+  const result = getDiagnolLine(input);
+
+  const output = [ [ 7, 9 ], [ 8, 8 ], [ 9, 7 ] ]
+  assertEquals(result, output);
+});
+
+

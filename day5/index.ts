@@ -2,6 +2,7 @@ type Cood = [number, number];
 export type Path = [Cood, Cood];
 type PathMap = Map<string, number>;
 
+
 function numberRange(start: number, end: number): number[] {
   return new Array(end - start).fill(0).map((d, i) => i + start);
 }
@@ -21,7 +22,7 @@ export async function parseData(path = "input.txt") {
       count = count + 1;
     }
   }
-  return count
+  return count;
 }
 
 export function formatRow(str: string): Path {
@@ -34,12 +35,16 @@ export function formatRows(strArr: string[]): Path[] {
 }
 
 export function drawPath(pathMap: PathMap, path: Path): PathMap {
+  if(isValidDiagnol(path)){
+    return plotLine(pathMap, getDiagnolLine(path))
+  }
   if (isValidHorizontal(path)) {
     return plotLine(pathMap, getHorizontalLine(path));
   }
   if (isValidVertical(path)) {
     return plotLine(pathMap, getVerticalLine(path));
   }
+
   return pathMap;
 }
 
@@ -49,6 +54,10 @@ export function isValidHorizontal([[_x1, y1], [_x2, y2]]: Path): boolean {
 
 export function isValidVertical([[x1, _y1], [x2, _y2]]: Path): boolean {
   return x1 === x2;
+}
+
+export function isValidDiagnol(path: Path): boolean {
+  return !(isValidHorizontal(path) || isValidVertical(path));
 }
 
 export function getVerticalLine([[_x1, y1], [x, y2]]: Path): Cood[] {
@@ -61,6 +70,36 @@ export function getHorizontalLine([[x1, y], [x2, _y]]: Path): Cood[] {
   const min = x1 > x2 ? x2 : x1;
   const max = x1 > x2 ? x1 : x2;
   return numberRange(min, max + 1).map((n) => [n, y]);
+}
+
+export function getDiagnolLine([[x1, y1], [x2, y2]]: Path): Cood[] {
+  const xMin = x1 > x2 ? x2 : x1;
+  const xMax = x1 > x2 ? x1 : x2;
+
+  const yMin = y1 > y2 ? y2 : y1;
+  const yMax = y1 > y2 ? y1 : y2;
+
+  const isXasc = x1 > x2 ? false : true
+  const isYasc = y1 > y2 ? false : true
+
+
+  let x = numberRange(xMin, xMax + 1).map((n) => {
+    return n;
+  });
+
+  if(isXasc){
+    x = x.reverse()
+  }
+
+  let y =  numberRange(yMin, yMax + 1).map((n) => {
+    return n;
+  });
+
+  if(isYasc){
+    y = y.reverse()
+  }
+
+ return  x.map((cood, i) => [cood, y[i]]);
 }
 
 export function plotLine(map: PathMap, line: Cood[]): PathMap {
