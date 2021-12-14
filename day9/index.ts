@@ -1,212 +1,119 @@
-class LowPoint {
-  constructor() {
-    this.col = 0;
-    this.row = 0;
-    this.isBottom = false;
-    this.isTop = false;
-    this.isLeftEdge = false;
-    this.isRightEdge = false;
-    this.val = 0;
-  }
-  compare(p: LowPoint): boolean {
-    return this.col === p.col && this.row === p.row;
-  }
-  row: number;
-  col: number;
-  isBottom: boolean;
-  isTop: boolean;
-  isLeftEdge: boolean;
-  isRightEdge: boolean;
-  val: number;
-}
-
-export type Direction = {
-  down: boolean;
-  up: boolean;
+type Point = {
+  x: number;
+  y: number;
 };
 
-export class Basin {
-  constructor() {
-    this.point = new LowPoint();
-    this.right = null;
-    this.left = null;
-    this.top = null;
-    this.bottom = null;
-
+const getInfo = (x: number, y: number, table: number[][]) => {
+  const isTop = y === 0;
+  const isBottom = y === table.length - 1;
+  const isLeft = x === 0;
+  const isRight = x === table[0].length - 1;
+  const left = !isLeft ? table[y][x - 1] : 9;
+  const right = !isRight ? table[y][x + 1] : 9;
+  const top = !isTop ? table[y - 1][x] : 9;
+  const bottom = !isBottom ? table[y + 1][x] : 9;
+  const point = table[y][x];
+  return {
+    isTop,
+    isBottom,
+    isRight,
+    isLeft,
+    left,
+    right,
+    top,
+    bottom,
+    point,
+    x,
+    y,
+  };
+};
+const findLowPoint = (table: number[][]): Point[] => {
+  const lowPoints: Point[] = [];
+  for (let y = 0; y < table.length; y++) {
+    for (let x = 0; x < table[0].length; x++) {
+      const { top, bottom, left, right, point } = getInfo(x, y, table);
+      if (top > point && bottom > point && left > point && right > point) {
+        lowPoints.push({
+          x,
+          y,
+        });
+      }
+    }
   }
-  compare(b: Basin | null): boolean {
-    if (b === null) return false;
-    return this.point.compare(b.point);
-  }
-
-  point: LowPoint;
-  right: Basin | null;
-  left: Basin | null;
-  top: Basin | null;
-  bottom: Basin | null;
-
-
-
-}
-
-export function linkBasins(basin: Basin, table: number[][]): Basin {
-  function _linkBasins(b: Basin): Basin {
-    const { row, col, isTop, isBottom, isLeftEdge, isRightEdge } = b.point;
-
-    if (!isTop && !b.top) {
-      const next = table[row - 1][col];
-      if (next !== 9 && !b.top) {
-        const nextBasin = new Basin();
-        nextBasin.point = addPointMeta(table, row - 1, col);
-        nextBasin.bottom = b;
-        b.top = _linkBasins(nextBasin);
-      }
-    }
-    if (!isBottom && !b.bottom) {
-      const next = table[row + 1][col];
-      if (next !== 9) {
-        const nextBasin = new Basin();
-        nextBasin.point = addPointMeta(table, row + 1, col);
-        nextBasin.top = b;
-        b.bottom = _linkBasins(nextBasin);
-      }
-    }
-    if (!isLeftEdge && !b.left) {
-      const next = table[row][col - 1];
-      if (next !== 9) {
-        const nextBasin = new Basin();
-        nextBasin.point = addPointMeta(table, row, col - 1);
-        nextBasin.right = b;
-        b.left = _linkBasins(nextBasin);
-      }
-    }
-    if (!isRightEdge && !b.right) {
-      const next = table[row][col + 1];
-      if (next !== 9) {
-        const nextBasin = new Basin();
-
-        nextBasin.point = addPointMeta(table, row, col + 1);
-        nextBasin.left = b;
-        b.right = nextBasin;
-      }
-    }
-
-    return b;
-  }
-
-  return _linkBasins(basin);
-}
-
-export async function parseData(path = "input.txt") {
-  return await (await Deno.readTextFile(path)).split("\n").map((s) =>
-    s.split("").map(
-      parseFloat,
-    )
-  );
-}
-
-export function addPointMeta(
-  table: number[][],
-  row: number,
-  col: number,
-): LowPoint {
-  const top = 0;
-  const bottom = table.length - 1;
-  const left = 0;
-  const right = table[0]?.length - 1;
-  const point = new LowPoint();
-  point.isTop = row === top;
-  point.isBottom = row === bottom;
-  point.isLeftEdge = col === left;
-  point.isRightEdge = col === right;
-  point.val = table[row][col];
-  point.row = row;
-  point.col = col;
-  return point;
-}
-
-export function findLowPoints(table: number[][]): LowPoint[] {
-  const lowPoints: LowPoint[] = [];
-
-  table.forEach((row, ridx) => {
-    row.forEach((cell, cidx) => {
-      const point = addPointMeta(table, ridx, cidx);
-
-      let isLowPoint = true; // now we will try and prove it
-
-      if (!point.isTop) { // is not top row, then compare top
-        if (cell >= table[ridx - 1][cidx]) {
-          isLowPoint = false;
-        }
-      }
-      if (!point.isBottom) {
-        if (cell >= table[ridx + 1][cidx]) {
-          isLowPoint = false;
-        }
-      }
-      if (!point.isLeftEdge) {
-        if (cell >= table[ridx][cidx - 1]) {
-          isLowPoint = false;
-        }
-      }
-      if (!point.isRightEdge) {
-        if (cell >= table[ridx][cidx + 1]) {
-          isLowPoint = false;
-        }
-      }
-
-      // did we make it?
-      if (isLowPoint) {
-        lowPoints.push(point);
-      }
-    });
-  });
   return lowPoints;
-}
+};
 
-const getRisk = (lowPoints: number[]) => {
+const makeGrid = (table: number[][]): Map<number, Map<number, 1 | 0>> => {
+  const grid: Map<number, Map<number, 1 | 0>> = new Map();
+
+  for (let y = 0; y < table.length; y++) {
+    grid.set(y, new Map());
+    for (let x = 0; x < table[0].length; x++) {
+      grid.get(y)?.set(x, 0);
+    }
+  }
+  return grid;
+};
+
+const findBasin = (
+  point: Point,
+  table: number[][],
+): Map<number, Map<number, 1 | 0>> => {
+  const grid = makeGrid(table);
+
+  const stack: number[][] = [];
+  stack.push([point.y, point.x]);
+  while (stack.length) {
+    const [y, x] = stack.pop()!;
+    const { top, bottom, left, right } = getInfo(x, y, table);
+
+    // visit
+    grid.get(y)?.set(x, 1);
+
+    // check other nodes
+    if (top !== 9 && !grid.get(y - 1)?.get(x)) {
+      stack.push([y - 1, x]);
+    }
+    if (bottom !== 9 && !grid.get(y + 1)?.get(x)) {
+      stack.push([y + 1, x]);
+    }
+    if (left !== 9 && !grid.get(y)?.get(x - 1)) {
+      stack.push([y, x - 1]);
+    }
+    if (right !== 9 && !grid.get(y)?.get(x + 1)) {
+      stack.push([y, x + 1]);
+    }
+  }
+  return grid;
+};
+
+const calcBasinSize = (basin: Map<number, Map<number, 1 | 0>>) => {
   let sum = 0;
-  for (const point of lowPoints) {
-    sum = sum + (point + 1);
+  for (const [_, row] of basin.entries()) {
+    for (const [_, cell] of row.entries()) {
+      sum = sum + cell;
+    }
   }
   return sum;
 };
 
-export const part1 = async () => {
-  return getRisk(
-    findLowPoints(await parseData()).map(({ val }) => {
-      return val;
-    }),
-  );
+export async function parseData(path = "input.txt"): Promise<number[][]> {
+  return await (await Deno.readTextFile(path)).split("\n").map((s) =>
+    s.split("").map(
+      parseFloat,
+    )
+  ).filter((r) => r.length);
+}
+
+const part2 = async () => {
+  const table = await parseData();
+  console.log(table);
+  const lowPoints = findLowPoint(table);
+  console.log(lowPoints);
+  const [a, b, c] = lowPoints.map(
+    (p) => calcBasinSize(findBasin(p, table)),
+  ).sort((a, b) => a - b).reverse();
+  return a * b * c;
 };
 
-
-
-const findLeftMost = (basin: Basin | null):Basin => {
-    if(basin?.left !== null){
-        return findLeftMost(basin)
-    }
-    return basin
-}
-const table = [
-  [2, 1, 9, 9, 9, 4, 3, 2, 1, 0],
-  [3, 9, 8, 7, 8, 9, 4, 9, 2, 1],
-  [9, 8, 5, 6, 7, 8, 9, 8, 9, 2],
-  [8, 7, 6, 7, 8, 9, 6, 7, 8, 9],
-  [9, 8, 9, 9, 9, 6, 5, 6, 7, 8],
-];
-
-const lowPoints = findLowPoints(table);
-
-const lowPointBasins = lowPoints.map(
-  (lp) => {
-    const b = new Basin();
-    b.point = lp;
-
-    return linkBasins(b, table);
-  },
-);
- 
-
-const asd = lowPointBasins
-console.log(asd);
+console.log(await part2());
