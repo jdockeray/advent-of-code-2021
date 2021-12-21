@@ -1,160 +1,113 @@
 type Position = {
-  col: number;
-  row: number;
+  x: number;
+  y: number;
 };
 
-type BoardInfo = {
-  flashed: Position[];
-  board: number[][];
-};
-
-const getInfo = ({ row, col }: Position, table: number[][]) => {
-  const isTop = row === 0;
-  const isBottom = row === table.length - 1;
-  const isLeft = col === 0;
-  const isRight = col === table[0].length - 1;
-
-  return {
-    isTop,
-    isBottom,
-    isRight,
-    isLeft,
-  };
-};
-export const getPoints = (point: Position, table: number[][]): Position[] => {
-  const {
-    isTop,
-    isBottom,
-    isRight,
-    isLeft,
-  } = getInfo(point, table);
-  const topLeft: Position = {
-    col: isLeft ? point.col : point.col - 1,
-    row: isTop ? point.row : point.row - 1,
-  };
-  const bottomLeft: Position = {
-    col: isLeft ? point.col : point.col - 1,
-    row: isBottom ? point.row : point.row + 1,
-  };
-  const topRight: Position = {
-    col: isRight ? point.col : point.col + 1,
-    row: isTop ? point.row : point.row - 1,
-  };
-
-  const points: Position[] = [];
-  for (let r = topLeft.row; r <= bottomLeft.row; r++) {
-    for (let c = topLeft.col; c <= topRight.col; c++) {
-      points.push({
-        col: c,
-        row: r,
-      });
-    }
+export async function parseData(path = "input.txt"): Promise<number[][]> {
+    return await (await Deno.readTextFile(path)).split("\n").map((s) =>
+      s.split("").map(
+        parseFloat,
+      )
+    ).filter((r) => r.length);
   }
-  return points;
-};
 
-const stepIncrease = (board: number[][]) => {
-  return board.map((row) =>
-    row.map((v) => {
-      return v + 1;
-    })
-  );
-};
+export const inRange = (left: Position, right: Position) =>
+  Math.abs(left.x - right.x) <= 1 && Math.abs(left.y - right.y) <= 1;
 
-export const hasFlashed = (position: Position, flashed: Position[]) => {
-  return flashed.some((val) => {
-    return val.col === position.col && val.row === position.row;
-  });
-};
+const octoFlash = (flashes: Position[] = [], board: number[][]): number[][] => {
+  if (flashes.length === 0) return board;
 
-const findNextFlash = (
-  board: number[][],
-  flashed: Position[],
-): Position | null => {
-  let next: Position | null = null;
-  board.forEach((row, rIdx) => {
-    row.forEach((col, cIdx) => {
-      if (next !== null) return;
-      const candidate: Position = {
-        row: rIdx,
-        col: cIdx,
+  const flash = flashes.shift()!; // unqueue
+  if (board[flash.y][flash.x] === 0) { // you have already flashed this one
+    return octoFlash(flashes, board);
+  }
+  board.forEach((row, ridx) => {
+    row.forEach((col, cidx) => {
+      const point = {
+        x: cidx,
+        y: ridx,
       };
-
-      if (col === 9 && !hasFlashed(candidate, flashed)) {
-        next = candidate;
+      if (inRange(flash, point) && col !== 0) {
+          const next = board[ridx][cidx] + 1;
+        if (next === 10) {
+          flashes.push({
+            x: cidx,
+            y: ridx,
+          });
+        }
+        board[ridx][cidx] = next
       }
     });
   });
-  return next;
+  board[flash.y][flash.x] = 0; // 0 means that its flashed for this step
+
+  return octoFlash(flashes, board);
+};
+export const step = (board: number[][]) => {
+  const b = board.map((r) => r.map((c) => c + 1)); // increment
+
+  return octoFlash(findFlashes(b), b);
 };
 
-export const runFlash = (point: Position, board: number[][]): number[][] => {
-  const points = getPoints(point, board);
-  points.forEach(({
-    row,
-    col,
-  }) => {
-    board[row][col] = board[row][col] + 1;
-  });
-  board[point.row][point.col] = 0;
-  return board;
+const findFlashes = (board: number[][]): Position[] => {
+  const flashes: Position[] = [];
+  board.forEach(
+    (r, ridx) => {
+      r.forEach(
+        (c, cidx) => {
+          if (c > 9) {
+            flashes.push(
+              {
+                x: cidx,
+                y: ridx,
+              },
+            );
+          }
+        },
+      );
+    },
+  );
+  return flashes;
 };
 
-export const step = (
-  board: number[][] = [],
-  flashed: Position[] = [],
-): BoardInfo => {
-  let nextBoard = stepIncrease(board);
-  const flashes = []
-  while (findNextFlash(nextBoard, flashed) !== null) {
-    // find next flash
-    const next = findNextFlash(nextBoard, flashed);
-
-    // run flash
-    nextBoard = runFlash(next!, nextBoard);
-
-    // add flashed
-    flashed.push(next!);
-  }
-  return {
-    board: nextBoard,
-    flashed,
-  };
-};
-
-const steps = (startBoard: number[][] = [], steps: number) => {
-  let nextBoard = startBoard;
+const countFlash = (board: number[][]): number => {
   let count = 0;
-  for (let i = 0; i <= steps; i++) {
-    const {
-      board,
-      flashed,
-    } = step(nextBoard);
-    count = count + flashed.length;
-    nextBoard = board;
-  }
+  board.forEach((r) => {
+    r.forEach((c) => {
+      if (c === 0) {
+        count = count + 1;
+      }
+    });
+  });
   return count;
 };
 
-// const testData = [
-//   [5, 4, 8, 3, 1, 4, 3, 2, 2, 3],
-//   [2, 7, 4, 5, 8, 5, 4, 7, 1, 1],
-//   [5, 2, 6, 4, 5, 5, 6, 1, 7, 3],
-//   [6, 1, 4, 1, 3, 3, 6, 1, 4, 6],
-//   [6, 3, 5, 7, 3, 8, 5, 4, 7, 8],
-//   [4, 1, 6, 7, 5, 2, 4, 6, 4, 5],
-//   [2, 1, 7, 6, 8, 4, 1, 7, 2, 1],
-//   [6, 8, 8, 2, 8, 8, 1, 1, 3, 4],
-//   [4, 8, 4, 6, 8, 4, 8, 5, 5, 4],
-//   [5, 2, 8, 3, 7, 5, 1, 5, 2, 6],
-// ];
-// console.log(steps(testData, 100));
+export const steps = (board: number[][], numberOfSteps: number) => {
+  let count = 0;
+  let sum = 0;
+  while (count < numberOfSteps) {
+    board = step(board);
+    sum = sum + countFlash(board);
+    count++;
+  }
+  return sum;
+};
 
-// const simpleData = [
-//   [1, 1, 1, 1, 1],
-//   [1, 9, 9, 9, 1],
-//   [1, 9, 1, 9, 1],
-//   [1, 9, 9, 9, 1],
-//   [1, 1, 1, 1, 1],
-// ];
-// console.log(step(simpleData));
+const findSync = (board: number[][]):number => {
+    let flashes = 0
+    let count = 0;
+
+    const boardSize = board[0].length * board.length
+    while (boardSize !== flashes) {
+        board = step(board);
+        flashes = countFlash(board);
+        count++;
+    }
+    return count
+}
+
+// part 1
+console.log(steps(await parseData(), 100));
+
+// part 2
+console.log(findSync(await parseData()));
